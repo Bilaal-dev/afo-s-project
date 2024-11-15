@@ -1,113 +1,110 @@
-
 class Reminder {
 	constructor(title, description) {
-		this.title = title;
-		this.description = description;
+	  this.title = title;
+	  this.description = description;
 	}
-}
-
-
-class UI {
+  }
+  
+  class UI {
 	addReminderToList(reminder) {
-		const table = document.querySelector(".table");
-		const tableList = document.createElement("ul");
-		tableList.setAttribute("class", "table-list");
-		tableList.innerHTML = `
-      <li>${reminder.title}</li>
-      <li>${reminder.description}</li>
-      <li class="icon-list">
-         <i class="fa fa-check"></i>
-      </li>
-     `;
-
-		table.appendChild(tableList);
+	  const table = document.querySelector(".table");
+	  const tableList = document.createElement("ul");
+	  tableList.setAttribute("class", "table-list");
+	  tableList.innerHTML = `
+		<li>${reminder.title}</li>
+		<li>${reminder.description}</li>
+		<li class="icon-list">
+		   <i class="fa fa-check"></i>
+		</li>
+	  `;
+  
+	  table.appendChild(tableList);
 	}
-
+  
 	clearFields() {
-		document.querySelector("#title").value = "";
-		document.querySelector("#description").value = "";
+	  document.querySelector("#title").value = "";
+	  document.querySelector("#description").value = "";
 	}
-}
-
-
-class LocalStorage {
-	static getDataFromLS() {
-		let reminderList;
-		if (localStorage.getItem("reminderList") === null) {
-			reminderList = [];
-		} else {
-			reminderList = JSON.parse(localStorage.getItem("reminderList"));
-		}
-
-		return reminderList;
+  }
+  
+  // Fetch all reminders from the backend on page load
+  document.addEventListener("DOMContentLoaded", async () => {
+	try {
+	  const response = await fetch("http://localhost:5000/api/reminders");
+	  const reminders = await response.json();
+  
+	  reminders.forEach((reminder) => {
+		const ui = new UI();
+		ui.addReminderToList(reminder);
+	  });
+	} catch (error) {
+	  console.error("Error fetching reminders:", error);
 	}
-
-	static addReminderListToLS(reminder) {
-		const reminders = LocalStorage.getDataFromLS();
-
-		reminders.push(reminder);
-		localStorage.setItem("reminderList", JSON.stringify(reminders));
-	}
-
-	static addRemindersFromLS() {
-		const addReminders = LocalStorage.getDataFromLS();
-		addReminders.forEach((addReminder) => {
-			const ui = new UI();
-			ui.addReminderToList(addReminder);
-		});
-	}
-
-	static deleteReminderFromLS(title) {
-		const reminders = LocalStorage.getDataFromLS();
-
-		reminders.forEach((reminder, index) => {
-			if (reminder.title === title) {
-				reminders.splice(index, 1);
-			}
-		});
-
-		localStorage.setItem("reminderList", JSON.stringify(reminders));
-	}
-}
-
-
-const form = document.getElementById("mainForm");
-
-form.addEventListener("submit", function (e) {
+  });
+  
+  const form = document.getElementById("mainForm");
+  
+  form.addEventListener("submit", async function (e) {
 	e.preventDefault();
-
-	let [title, description] = [
-		document.querySelector("#title").value,
-		document.querySelector("#description").value,
+  
+	const [title, description] = [
+	  document.querySelector("#title").value,
+	  document.querySelector("#description").value,
 	];
-
-	
+  
 	const reminder = new Reminder(title, description);
-
-	
 	const ui = new UI();
-
-	ui.addReminderToList(reminder);
-	ui.clearFields();
-	LocalStorage.addReminderListToLS(reminder);
-});
-
-
-const table = document.querySelector(".table");
-table.addEventListener("click", function (e) {
+  
+	try {
+	  const response = await fetch("http://localhost:5000/api/reminders", {
+		method: "POST",
+		headers: {
+		  "Content-Type": "application/json",
+		},
+		body: JSON.stringify(reminder),
+	  });
+  
+	  if (response.ok) {
+		ui.addReminderToList(reminder);
+		ui.clearFields();
+	  } else {
+		console.error("Error saving reminder");
+	  }
+	} catch (error) {
+	  console.error("Error:", error);
+	}
+  });
+  
+  const table = document.querySelector(".table");
+  
+  table.addEventListener("click", async function (e) {
 	const target = e.target;
 	const title =
-		target.parentElement.previousElementSibling.previousElementSibling
-			.textContent;
+	  target.parentElement.previousElementSibling.previousElementSibling
+		.textContent;
+  
 	if (target.className === "fa fa-check") {
-		target.parentElement.style.backgroundColor = "#3b3939";
-		setTimeout(() => {
+	  target.parentElement.style.backgroundColor = "#3b3939";
+  
+	  try {
+		const response = await fetch(
+		  `http://localhost:5000/api/reminders/${title}`,
+		  {
+			method: "DELETE",
+		  }
+		);
+  
+		if (response.ok) {
+		  setTimeout(() => {
 			const targetBody = target.parentElement.parentElement;
 			targetBody.remove();
-		}, 700);
+		  }, 700);
+		} else {
+		  console.error("Error deleting reminder");
+		}
+	  } catch (error) {
+		console.error("Error:", error);
+	  }
 	}
-	LocalStorage.deleteReminderFromLS(title);
-});
-
-
-document.addEventListener("DOMContentLoaded", LocalStorage.addRemindersFromLS);
+  });
+  
